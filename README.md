@@ -26,15 +26,14 @@ INPUT:
 
 OUTPUT:
 
-		H5 FILES:
+		H5 FILES (+ XMF):
 		volume_segmentation.h5: 1025x1025x504 numpy uint16. Matrix=0, fibers=1 and voids=2
+		
+		
 		volume_fiber_voids.h5: 1025x1025x504 numpy uint16. Matrix=0, voids=1, fiber=2...N (each number is a different fiber. Starting at 2...N)
+		
+		
 		data_volume.h5: 1025x1025x504 numpy uint16. Reference volume of original sample scaled
-
-		XMF FILES:
-		volume_segmentation.xmf: file to vizualise volume_segmentation.h5
-		volume_fiber_voids.xmf: file to vizualise volume_fiber_voids.h5
-		data_volume.xmf: file to vizualise data_volume.h5
 
 		TXT FILES:
 		fiber_dictionary.txt: fiber dictionary containing:
