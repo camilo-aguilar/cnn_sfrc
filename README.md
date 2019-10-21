@@ -3,16 +3,17 @@ Scripts to extract fibers and voids from short fiber reinforced polymers V2
 
 REQUIREMENTS:
 
--Python 2.7  
--GPU memory 10 GBs  
--Anaconda Command:
+	-Python 2.7  
+	-GPU memory > 6 GBs  
+
 
 SET UP:
-First time:
+
+
+	First time:
 	-download file fiber_env.yml
 	-run command: conda env create -f fiber_env.yml
-
-To run:
+	To run:
 	-modify "data_path" variable in script main.py  
 	-run shell commands:
 		>> conda activate fiber_env
@@ -20,12 +21,10 @@ To run:
 
 
 INPUT:
-	-Directory with path containing 2560x2560x1350 UINT16 images (these numbers are hard corded)
+
+	Directory with path containing 2560x2560x1350 UINT16 images (these numbers are hard corded)
 
 OUTPUT:
-
--Folder:
-	output_files:
 
 		H5 FILES:
 		volume_segmentation.h5: 1025x1025x504 numpy uint16. Matrix=0, fibers=1 and voids=2
