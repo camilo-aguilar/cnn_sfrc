@@ -93,6 +93,36 @@ def guess_cylinder_parameters_w(L, pre_seg):
 
     return(L, w_fit)
 
+def guess_cylinder_parameters_voids(L, pre_seg):
+    # L = L
+    indexes = np.where(pre_seg == L)
+
+    step_size = 1
+    num_points = len(indexes[0])
+    if(num_points < 30):
+        x = indexes[0].mean()
+        y = indexes[1].mean()
+        z = indexes[2].mean()
+        return [L, x, y, z, -1, -1, -1, -1, -1]
+    if(num_points > 30):
+        step_size = int(math.floor(num_points / 30))
+
+    fiber_points = [np.array([indexes[0][k], indexes[1][k], indexes[2][k]]).astype(np.float) for k in range(1, num_points, step_size)]
+
+    w_fit, C_fit, r_fit, h_fit, fit_err = fit(fiber_points)
+
+    return [L, C_fit[0], C_fit[1], C_fit[2], r_fit, num_points, w_fit[0], w_fit[1], w_fit[2]]
+
+
+def fit_all_voids_parallel(volume, offset_coordinates=None):
+    labels = np.unique(volume)
+    names = labels[2:]
+
+    number = multiprocessing.cpu_count()
+    with poolcontext(processes=number) as pool:
+        results = pool.map(partial(guess_cylinder_parameters_voids, pre_seg=volume), names)
+      
+    return results
 
 def guess_cylinder_parameters(L, pre_seg):
     L = L.item()

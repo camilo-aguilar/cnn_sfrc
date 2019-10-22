@@ -6,11 +6,16 @@ import numpy as np
 import tensors_io
 import time
 import torch
+import scipy.ndimage as ndi
+import os
 
 ## Main Function to Find Fibers and Voids
-def process_all_volume(net_s, net_e, net_sv, data_path, n_embedded=12, cube_size_e=96, cube_size_s=192, sub_volume_size=384, n_classes=3, save_images=False, downsample_result=False, scale=2, net_weights_dir=None, device=None):
+def process_all_volume(net_s, net_e, net_sv, data_path, n_embedded=12, cube_size_e=96, cube_size_s=192, sub_volume_size=384, n_classes=3, save_images=False, downsample_result=False, scale=2, net_weights_dir=None, device=None, output_directory='output_files'):
     print("Starting Processing all volume with merging...")
     print("~~~~Using GPU~~~~")
+
+    if not os.path.isdir(output_directory):
+        os.mkdir(output_directory)
     
     ## Load Pre-Trained Weights
     net_e.load_state_dict(torch.load('info_files/net_fibers_e.pth'))
@@ -80,39 +85,58 @@ def process_all_volume(net_s, net_e, net_sv, data_path, n_embedded=12, cube_size
             ################################################## Final Steps #################################################################
             # Shift Volumes to keep track of previous volume
             temp_last_volume = final_fibers[..., -int(percent_overlap * cube_size_e):].clone()
-            final_fibers = final_fibers[..., 0: slices - int(percent_overlap * cube_size_e) + 1]
-            final_pred = final_pred[..., 0: slices - int(percent_overlap * cube_size_e) + 1]
-            data_volume = data_volume[..., 0: slices - int(percent_overlap * cube_size_e) + 1]
+            final_fibers = final_fibers[..., 0: slices - int(percent_overlap * cube_size_e)]
+            final_pred = final_pred[..., 0: slices - int(percent_overlap * cube_size_e)]
+            data_volume = data_volume[..., 0: slices - int(percent_overlap * cube_size_e)]
 
             num_fibers = volume_fibers
             print(time.time() - start)
             out_vol_start = out_vol_end
             
-            print("Converting to numpy...")
+            print("Merging Voids and Fiber Results...")
+            unasigned_pixels = (final_fibers == 1).nonzero()
+            if(len(unasigned_pixels) > 0):
+                unasigned_pixels = unasigned_pixels.split(1, dim=1)
+                final_fibers[unasigned_pixels] = 0
+
             voids_idx = (final_pred == 2).nonzero()
             if(len(voids_idx) > 0):
                 voids_idx = voids_idx.split(1, dim=1)
                 final_fibers[voids_idx] = 1
-            final_pred = final_pred[0, 0, ...].cpu().numpy().astype(np.int64)
-            final_fibers = final_fibers[0, 0, ...].cpu().numpy().astype(np.int64)
-
 
             print("Saving Volume")
+            # Interpolate and save segmentation
+            # final_pred = F.interpolate(final_pred, scale_factor=2)
+            final_pred = final_pred[0, 0, ...].cpu().numpy().astype(np.int64)
             if(counter == 0):
-                tensors_io.save_volume_h5(final_pred, directory='./output_files', name='volume_segmentation', dataset_name='volume_segmentation')
-                tensors_io.save_volume_h5(final_fibers, directory='./output_files', name='volume_fiber_voids', dataset_name='volume_fiber_voids')
-                tensors_io.save_volume_h5((data_volume[0, 0, ...] * 255).cpu().numpy().astype(np.int64), directory='./output_files', name='data_volume', dataset_name='data_volume')
+                tensors_io.save_volume_h5(final_pred, directory=output_directory, name='volume_segmentation', dataset_name='volume_segmentation')  
             else:
-                tensors_io.append_volume_h5(final_pred, directory='./output_files', name='volume_segmentation', dataset_name='volume_segmentation')
-                tensors_io.append_volume_h5(final_fibers, directory='./output_files', name='volume_fiber_voids', dataset_name='volume_fiber_voids')
-                tensors_io.append_volume_h5((data_volume[0, 0, ...] * 255).cpu().numpy().astype(np.int64), directory='./output_files', name='data_volume', dataset_name='data_volume')
-
+                tensors_io.append_volume_h5(final_pred, directory=output_directory, name='volume_segmentation', dataset_name='volume_segmentation')
             del final_pred
+
+            # Interpolate and save fibers/voids
+            # final_fibers = F.interpolate(final_fibers, scale_factor=2)
+            final_fibers = final_fibers[0, 0, ...].cpu().numpy().astype(np.int64)
+            # final_fibers = ndi.zoom(final_fibers, 2, order=0)
+            if(counter == 0):
+                tensors_io.save_volume_h5(final_fibers, directory=output_directory, name='volume_fiber_voids', dataset_name='volume_fiber_voids')
+            else:
+                tensors_io.append_volume_h5(final_fibers, directory=output_directory, name='volume_fiber_voids', dataset_name='volume_fiber_voids')
+            del final_fibers
+
+            '''
+            data_volume = F.interpolate(data_volume, scale_factor=2)
+            if(counter == 0):
+                tensors_io.save_volume_h5((data_volume[0, 0, ...] * 65535).cpu().numpy().astype(np.int16), directory='./output_files', name='data_volume', dataset_name='data_volume')
+            else:
+                tensors_io.append_volume_h5((data_volume[0, 0, ...] * 65535).cpu().numpy().astype(np.int16), directory='./output_files', name='data_volume', dataset_name='data_volume')
+            del data_volume
+            '''
 
             counter = counter + 1
 
             print("FINISHED TESTING")
-            f = open("output_files/fiber_dictionary.txt","w")
+            f = open(output_directory + "/fiber_dictionary.txt", "w")
             for k in fiber_dict.keys():
                 el = fiber_dict[k]
                 f.write("{},{:.0f},{:.0f},{:.0f},{:.2f},{:.2f},{:.4f},{:.4f},{:.4f}\n".format(el[0], el[1], el[2], el[3], el[4], el[5], el[6], el[7], el[8]))
@@ -121,95 +145,8 @@ def process_all_volume(net_s, net_e, net_sv, data_path, n_embedded=12, cube_size
 
 
 
-def process_all_volume_voids(net, data_path, cube_size=192, sub_volume_size=384, n_classes=3, save_images=False, downsample_result=False, scale=2):
-    print("Starting Prcessing All Volume...")
-    GPU_YES = torch.cuda.is_available()
-    device = torch.device("cuda:0" if GPU_YES else "cpu")
-
-    print("~~~~Using GPU~~~~")
-    net.load_state_dict(torch.load('info_files/u_net_3D_k.pth'))
-    assert(sub_volume_size >= scale * cube_size)
-
-
-    ## Start Evaluation 
-    net = net.to(device)
-    net.eval()
-
-    out_vol_start = 0
-    out_vol_end = 0
-    first_slice = out_vol_start
-
-    loop_counter = 0
-    with torch.no_grad():
-        for subVn in range(first_slice * scale ,1350, sub_volume_size):
-            
-            # Load volume
-            print("Loading SubVolume")
-            if(subVn < 1350 - cube_size * scale):
-                in_vol_start = subVn
-            else:
-                in_vol_start = 1350 - cube_size * scale
-                out_vol_start =  in_vol_start // scale
-                out_vol_end = 1350 // scale
-            in_vol_end = in_vol_start + sub_volume_size - 1
-
-
-            data_volume = tensors_io.load_full_volume(data_path, in_vol_start ,in_vol_end)
-            data_volume[0, ...] = tensors_io.clean_noise(data_volume[0, ...], data_path)
-            data_volume = data_volume.unsqueeze(0)
-            ( _, _,rows, cols, slices) = data_volume.shape
-            out_vol_end = out_vol_start + slices
-            # Create Final Image
-            final_probs = torch.zeros((1, n_classes, rows, cols, slices), requires_grad=False) + 0.001
-
-            test_net_one_pass_segmentation(net, data_volume, final_probs, n_classes=n_classes, cube_size=192, start_offset=0)
-
-            test_net_one_pass_segmentation(net, data_volume, final_probs, n_classes=n_classes, cube_size=192, start_offset=100)
-
-
-
-            _, final_pred = final_probs.max(1)
-            final_pred = final_pred.unsqueeze(0).float()
-            del final_probs
-
-            
-            # This is hard coded!
-            print('Filtering Edges') 
-            filter_image = tensors_io.cylinder_filter([rows, cols, slices], center=[510, 508], radius=450)
-            filter_image = torch.from_numpy(filter_image)
-            filter_image = filter_image.unsqueeze(0).unsqueeze(0).float()
-            final_pred = final_pred * filter_image
-
-            
-            del filter_image
-
-            out_vol_start = out_vol_end
-            #print(final_pred[0, 0, 0:100, 0:100, 0:100].numpy().shape)
-            
-            print("Converting to numpy and upsampling...")
-            final_pred = final_pred.cuda()
-            final_pred = F.interpolate(final_pred, scale_factor=2)
-
-            print("Saving Volume")
-            if(loop_counter == 0):
-                tensors_io.save_volume_h5(final_pred[0, 0, ...].cpu().numpy(), directory='./h5_files', name='angle_z', dataset_name='angle_z')
-            else:
-                tensors_io.append_volume_h5(final_pred[0, 0, ...].cpu().numpy(), directory='./h5_files', name='angle_z', dataset_name='angle_z')
-            del final_pred
-
-            loop_counter = loop_counter + 1
-
-
-    print("FINISHED TESTING")
-
-
-
-
-
-
 
 ################################################ Helper  Functions  ############################################################
-################################################ Helper   Functions ############################################################
 
 def get_only_segmentation(net_s, data_volume, n_classes, cube_size):
     (batch_size, channels, rows, cols, depth) = data_volume.shape

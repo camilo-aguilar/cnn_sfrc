@@ -1,128 +1,118 @@
 import tensors_io
 from skimage import measure
-from unet.cylinder_fitting import fit_all_fibers_parallel_simple, fit_all_fibers_parallel, fit_all_fibers_parallel_simple
+from unet.cylinder_fitting import fit_all_fibers_parallel, fit_all_voids_parallel
 import numpy as np
+
 import matplotlib.pyplot as plt
+import scipy.ndimage as ndi
 
 
 
-def crop_volume(h5_volume_dir, dataset_name, dataset_name2, start=[600, 600, 80], end=100):
-    start = [650, 450, 50]
+################################  Manipulate Volumes ################################
+''' Crops a Volume given start coordinates and a window size'''
+def crop_volume(h5_volume_dir, dataset_name, dataset_name2, start=[600, 600, 80], window_size=100):
     print("Cropping volume")
     Volume = tensors_io.read_volume_h5(dataset_name, dataset_name, h5_volume_dir)
     print(len(np.where(Volume == 1)[0]))
-    Volume = Volume[start[0]:start[0] + end,start[1]:start[1] + end, start[2]:start[2] + end]
-    for i in np.unique(Volume):
-        pixs = len(np.where(Volume == i)[0])
-        if(pixs < 20):
-            print(i)
+    Volume = Volume[start[0]:start[0] + window_size,start[1]:start[1] + window_size, start[2]:start[2] + window_size]
     
     data_volume = tensors_io.read_volume_h5(dataset_name2, dataset_name2, h5_volume_dir)
-    data_volume = data_volume[start[0]:start[0] + end,start[1]:start[1] + end,start[2]:start[2] + end]
+    data_volume = data_volume[start[0]:start[0] + window_size,start[1]:start[1] + window_size,start[2]:start[2] + window_size]
 
     tensors_io.save_volume_h5(Volume, name=dataset_name + "_cropped", dataset_name=dataset_name + "_cropped", directory=h5_volume_dir)
     tensors_io.save_volume_h5((data_volume * 256).astype(np.int16), name= "volume_cropped", dataset_name= "volume_cropped", directory=h5_volume_dir)
 
-def downsample_volume(h5_volume_dir, dataset_name):
 
+''' Downsamples a volume given a scale'''
+def downsample_volume(h5_volume_dir, dataset_name, scale=4):
+    scale = float(scale)
     print("Downsampling volume")
     Volume = tensors_io.read_volume_h5(dataset_name, dataset_name, h5_volume_dir)
-    scale = 4
-    # Volume = Volume[1:100, 1:100, 1:200]
-    Volume = Volume[::scale, ::scale, ::scale]
+
+    Volume = ndi.zoom(Volume, 1 / scale, order=0)
     tensors_io.save_volume_h5(Volume, name=dataset_name + "_small", dataset_name=dataset_name + "_small", directory=h5_volume_dir)
 
-def get_statistics_voids(h5_volume_dir, voids_name):
 
-    print("Downsampling and calculating statistics voids")
-    V_voids = tensors_io.read_volume_h5(voids_name, voids_name, h5_volume_dir)
-    V_voids = V_voids > 0
-    V_voids, num_voids = measure.label(V_voids, return_num=True)
-    list_voids = fit_all_fibers_parallel(V_voids)
-    
+''' Downsamples a volume given a scale'''
+def upsample_full_volume(h5_volume_dir, dataset_name, scale=2):
+    print("Upsampling Volume")
+    Volume = tensors_io.read_volume_h5(dataset_name, dataset_name, h5_volume_dir)
+    slices = Volume.shape[-1]
+    upsample_full_volume
+
+    for slc in range(0, slices, 100):
+        Volume = tensors_io.read_volume_h5(dataset_name, dataset_name, h5_volume_dir)
+        Volume = Volume[..., slc: slc + 100]
+        Volume = ndi.zoom(Volume, scale, order=0)
+
+        if(slc == 0):
+            tensors_io.save_volume_h5(Volume, directory=h5_volume_dir, name=dataset_name + "full", dataset_name=dataset_name + "_full")
+        else:
+            tensors_io.append_volume_h5(Volume, directory=h5_volume_dir, name=dataset_name + "full", dataset_name=dataset_name + "_full")
+
+
+
+''' Converts a Volume into a Volume represented by its size'''
+def get_size_image(volume):
+    print("Starting Labeling")
+    volume, num_voids = measure.label(volume, return_num=True)
+    print(num_voids)
+    print("Starting Mapping")
+    for i in range(1, num_voids):
+        idx = np.where(volume == i)
+        volume[idx] = len(idx[0])
+    return volume
+
+################################  Get Statistics ################################
+
+''' Calculate Void Point Statistics'''
+''' Outputs a Dictionary of the Form:'''
+'''  << void_label, center[0]. center[1], center[2], mean_radious, volume, direction[0], direction[1], direction[2]'''
+def get_statistics_voids(h5_volume_dir, voids_name, scale=2):
+    scale = float(scale)
+    print("Calculating statistics voids")
+    Volume = tensors_io.read_volume_h5(voids_name, voids_name, h5_volume_dir)
+    Volume[np.where(Volume != 1)] = 0
+
+    Volume = ndi.zoom(Volume, 1.0 / scale)
+    Volume, num_voids = measure.label(Volume, return_num=True)
+    list_voids = fit_all_voids_parallel(Volume)
     for el in list_voids:
-        if(el[-1] > 0):
-            print(el)
-            '''
-    f = open("dict_voids.txt","w")
-    for k in range(len(list_voids)):
-        el = list_voids[k]
-        f.write("{},{:.0f},{:.0f},{:.0f},{:.2f}, {:.2f}, {:.0f}, {:.0f}\n".format(el[0], el[1], el[2], [3], el[4], el[5], el[6], el[7]))
-        # L, C_fit, r_fit, h_fit, Txy, Tz, fit_err
-    f.close()
-    '''
-    momemtum_y = np.zeros(V_voids.shape).astype(np.int)
-    momemtum_z = np.zeros(V_voids.shape).astype(np.int)
+        f = open(h5_volume_dir + "/void_dictionary.txt", "w")
+        for k in range(len(list_voids)):
+            el = list_voids[k]
+            if(el[-1] != -1):
+                f.write("{},{:.0f},{:.0f},{:.0f},{:.2f}, {:.3f}, {:.4f}, {:.4f}, {:.4f}\n".format(el[0], int(scale) * el[1].item(), int(scale) * el[2].item(), int(scale) * el[3].item(), int(scale) * el[4].item(), int(scale) * int(scale) * int(scale) * el[5], el[6], el[7], el[8]))
+        f.close()
+    Volume = ndi.zoom(Volume, 2, order=0)
+    tensors_io.save_volume_h5(Volume, name=voids_name + '_labeled_voids', dataset_name=voids_name + '_labeled_voids', directory=h5_volume_dir)
 
-    for el in list_voids:
-        Ty = el[6]
-        Tz = el[7]
-        if(Ty == -1 or Tz == -1):
-            continue
-        idx = np.where(V_voids == el[0])
-        momemtum_y[idx] = int(Ty / 60)
-        momemtum_z[idx] = int(Tz / 60)
-
-    tensors_io.save_volume_h5(momemtum_z, name=voids_name + "_angle_z", dataset_name=voids_name + "_angle_z", directory=h5_volume_dir)
-    tensors_io.save_volume_h5(momemtum_y, name=voids_name + "_angle_y", dataset_name=voids_name + "_angle_y", directory=h5_volume_dir)
+    try:
+        read_dictionary_voids_volume(h5_volume_dir + "/void_statistics.txt")
+    except:
+        print("Volume plotting is not possible. Plot Manually")
 
 
-def get_direction_training(input_dir):
-    V_fibers = tensors_io.load_volume_uint16(input_dir, scale=1)
-
-    V_fibers = V_fibers[0, ...].numpy()
-    Vshape = V_fibers.shape
-    list_fibers = fit_all_fibers_parallel_simple(V_fibers)
-    output_dir = input_dir + 'directions'
-    training_data = np.zeros([3, Vshape[0], Vshape[1], Vshape[2]])
-
-    for el in list_fibers:
-        if(el[0] == -1):
-            print("one fiber skipped")
-            continue
-        idx = np.where(V_fibers == el[0])
-        for i in range(3):
-            tuple_v = tuple([np.array(i), idx[0], idx[1], idx[2]])
-            w_c = el[1][i]
-            training_data[tuple_v]  = w_c
-
-
-    np.save(output_dir, training_data)        
-
-def get_statistics_fibers(h5_volume_dir, fibers_name):
+''' Calculate Fiber Point Statistics'''
+''' Outputs a Dictionary of the Form:'''
+'''  << void_label, center[0]. center[1], center[2], mean_radious, length, theta, phi'''
+def get_statistics_fibers(h5_volume_dir, fibers_name, scale=2):
     print("Downsampling and calculating statistics voids")
+    scale = float(scale)
     V_fibers = tensors_io.read_volume_h5(fibers_name, fibers_name, h5_volume_dir)
-    scale = 4
-    V_fibers = V_fibers[::scale, ::scale, ::scale]
+    V_fibers[np.where(V_fibers == 1)] = 0
 
-    list_voids = fit_all_fibers_parallel(V_fibers)
+    V_fibers = ndi.zoom(V_fibers, 1 / scale, order=0)
+
+    list_fibers = fit_all_fibers_parallel(V_fibers)
     f = open("dict_fibers.txt","w")
-    for k in range(len(list_voids)):
-        el = list_voids[k]
-        f.write("{},{:.0f},{:.0f},{:.0f},{:.2f},{:.2f},{:.0f},{:.0f}\n".format(el[0], el[1][0], el[1][1], el[1][2], el[2], el[3], el[4], el[5]))
-        # L, C_fit, r_fit, h_fit, Txy, Tz, fit_err
+    for k in range(len(list_fibers)):
+        el = list_fibers[k]
+        f.write("{},{:.0f},{:.0f},{:.0f},{:.2f},{:.2f},{:.0f},{:.0f}\n".format(el[0], scale * el[1][0], scale * el[1][1], scale * el[1][2], scale * el[2], scale * el[3], el[4], el[5]))
     f.close()
 
-
-################################################## Statistics    ####################################    
-
-def massive_fitting(h5_volume_dir, volume_h5_name='Volume', start=0, end=None):
-    print("Starting Massive Fitting")
-    Vf = tensors_io.read_volume_h5(volume_h5_name, volume_h5_name, h5_volume_dir)
-
-    if(end is None):
-        end = Vf.shape[-1]
-
-    Vf = torch.from_numpy(Vf[:, :, start:end].astype(np.long)).unsqueeze(0)
-
-    final_list_fibers = fit_all_fibers_parallel_simple(Vf)
-    f = open("dict.txt","w")
-    for k in range(len(final_list_fibers)):
-        el = final_list_fibers[k]
-        f.write("{},{:.0f},{:.0f},{:.0f},{:.2f}\n".format(el[0], el[1][0], el[1][1], el[1][2], el[2]))
-    f.close()
-
-
+################################ Plotting ################################
+''' Read Fiber Dictionary and Plot Length Histogram'''
 def read_dictionary(directory):
     counter = 0
     list_of_fibers = []
@@ -145,119 +135,49 @@ def read_dictionary(directory):
     plt.plot(bin_edges[:-1], lenghts_histogram)
     plt.ylabel('Counts')
     plt.xlabel('Lenghts')
-    # plt.axis(bin_edges)
-
     print("Plotting")
     plt.show()
 
     return list_of_fibers
 
-def read_dictionary_voids_lenghts(directory):
+''' Read Void Dictionary and Plot Volume Histogram'''
+def read_dictionary_voids_volume(directory, large_vol_dim=5000):
     scale = 8
     counter = 0
-    list_of_fibers = []
+    list_of_voids = []
     with open(directory) as f:
         for line in f.readlines():
             line = line[:-1].split(",")
-            list_of_fibers.append([float(k) for k in line])
+            list_of_voids.append([float(k) for k in line])
             counter += 1
 
-    list_of_fibers = np.array(list_of_fibers)
-    len(list_of_fibers)
+    list_of_voids = np.array(list_of_voids)
+    len(list_of_voids)
 
-    # lenghts = np.clip(list_of_fibers[:, 5], 0, 500)
-    lenghts = list_of_fibers[:, 5]
-    lenghts = np.delete(lenghts, np.where(list_of_fibers == 1))
-    (lenghts_histogram, bin_edges) = np.histogram(lenghts, 100)
-
-
-    plt.plot(scale * 2 * bin_edges[:-1] * 1.3, lenghts_histogram)
-    plt.ylabel('Counts')
-    plt.xlabel('Lenght (m E-6)')
-    plt.title('Void Lenght Histogram')
-    # plt.axis(bin_edges)
-
-    print("Plotting")
-    plt.show()
-
-    return list_of_fibers
-
-def get_size_image(volume):
-    print("Starting Labeling")
-    volume, num_voids = measure.label(volume, return_num=True)
-    # save_volume_h5(V_voids, name='only_voids', dataset_name='only_voids', directory='./statistics')
-    print(num_voids)
-    print("Starting Mapping")
-    for i in range(1, num_voids):
-        idx = np.where(volume == i)
-        volume[idx] = len(idx[0])
-    return volume
-
-'''
-def get_size_fibers(volume):
-	read_dictionary("from_meanpill/dict.txt")
-    print("Starting Labeling")
-    volume, num_fibers = measure.label(volume, return_num=True)
-    # save_volume_h5(V_voids, name='only_voids', dataset_name='only_voids', directory='./statistics')
-    print(num_fibers)
-    print("Starting Mapping")
-    for i in range(1, num_fibers):
-        idx = np.where(volume == i)
-        volume[idx] = len(idx[0])
-    return volume
-'''
-
-def directions_plotting():
-    from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
-
-    import matplotlib.pyplot as plt
-    import numpy as np
-
-    #V = np.load("updated_fibers/directions_300.npy")
-    #V = np.load("network_output_directions.npy")
-    V = np.load("temp_save.npy")
-    print(V.shape)
-    S = 0
-    sz = 20
-    V = V[:, S:S + sz, S:S + sz, S:S + sz]
+    volumes = list_of_voids[:, 5]
+    volumes = np.delete(volumes, np.where(volumes < large_vol_dim))
+    (volumes_histogram, bin_edges) = np.histogram(volumes, 100)
 
     fig = plt.figure()
-    ax = fig.gca(projection='3d')
-    print(V.shape)
-    '''
-    # Make the grid
-    x, y, z = np.meshgrid(np.arange(-0.8, 1, 0.2),
-                          np.arange(-0.8, 1, 0.2),
-                          np.arange(-0.8, 1, 0.2))
+    plt.plot(scale * bin_edges[:-1] * 1.3, volumes_histogram)
+    plt.ylabel('Counts')
+    plt.xlabel('Volume')
+    plt.title('Large Void Volume Histogram')
+    print("Plotting")
+    plt.savefig(directory[:-4] + "_volumes.png")
+    plt.close(fig)
 
-    # Make the direction data for the arrows
-    u = np.sin(np.pi * x) * np.cos(np.pi * y) * np.cos(np.pi * z)
-    v = -np.cos(np.pi * x) * np.sin(np.pi * y) * np.cos(np.pi * z)
-    w = (np.sqrt(2.0 / 3.0) * np.cos(np.pi * x) * np.cos(np.pi * y) *
-         np.sin(np.pi * z))
 
-    print(u.shape)
-    print(x.shape)
-    '''
-    scale = 2
-    V = V[:, ::scale, ::scale, ::scale] 
-    u = V[1, ...]
-    v = V[0, ...]
-    w = V[2, ...]
-    # Make the grid
-    x, y, z = np.meshgrid(np.arange(0, V.shape[1], 1),
-                          np.arange(0, V.shape[2], 1),
-                          np.arange(0, V.shape[3], 1))
-    ax.quiver(x, y, z, u, v, w, length=1, normalize=True)
+    return list_of_voids
 
-    plt.show()
+
 if __name__ == '__main__':
     data_path = '/Storage/DATASETS/Fibers/Tiff_files_tomo_data'
     data_path = "/pub2/aguilarh/DATASETS/Tiff_files_tomo_data"
     
     ########################  Downsample Volumes  ########################
     #downsample_volume("h5_files", "final_fibers")
-    crop_volume("h5_files", "final_fibers", "data_volume")
+    # crop_volume("output_files", "volume_fiber_voids", "volume_fiber_voids")
     #for i in range(1, 5):
     #    mask_path = "MORE_TRAINING/NewTrainData_Sep9/sV" + str(i) + "/fibers_uint16_sV" + str(i)
     #    get_direction_training(mask_path)
@@ -276,8 +196,8 @@ if __name__ == '__main__':
     #read_dictionary_voids_lenghts("statistics/dict_voids.txt")
 
     ######################## Saving Volumes ########################
-    #tensors_io.save_images_of_h5(h5_volume_dir='h5_files', data_volume_path=data_path, output_path='h5_files/fibers', volume_h5_name='final_fibers', start=10, end=20, scale=2)
+    # tensors_io.save_images_of_h5(h5_volume_dir='output_files', data_volume_path=data_path, output_path='output_files/fibers', volume_h5_name='volume_fiber_voids', start=10, end=20, scale=2)
     
-    # tensors_io.save_images_of_h5_side(h5_volume_dir='h5_files', data_volume_path=data_path, output_path='h5_files/fibers_side', volume_h5_name='final_fibers', start=400, end=410, scale=2)
+    # tensors_io.save_images_of_h5_side(h5_volume_dir='output_files', data_volume_path=data_path, output_path='output_files/fibers_side', volume_h5_name='volume_fiber_voids', start=400, end=410, scale=2)
     # This import registers the 3D projection, but is otherwise unused.
     

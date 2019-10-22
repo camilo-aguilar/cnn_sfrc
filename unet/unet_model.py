@@ -1017,11 +1017,11 @@ def get_fiber_properties(space_labels, large_volume=False):
     fiber_list = {}
     # id center1, center2, center3, L, R, Ty, Tz, error
     for fiber_id in torch.unique(space_labels):
-        if(fiber_id == 0 or fiber_id == 1):
+        if(fiber_id.cpu().item() == 0 or fiber_id.cpu().item() == 1):
             continue
         idx = (space_labels == fiber_id).nonzero().float()
         if(large_volume is True):
-            if(len(idx) < 20):
+            if(len(idx) < 10):
                 space_labels[idx.long().split(1, dim=1)] = 0
                 continue
         # idx is shape [N, 3]

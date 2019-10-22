@@ -385,6 +385,7 @@ def save_images_of_h5(h5_volume_dir, data_volume_path, output_path, volume_h5_na
     #Vv = torch.from_numpy(Vv[:, :, start:end].astype(np.long)).unsqueeze(0)
 
     Vf = read_volume_h5(volume_h5_name, volume_h5_name, h5_volume_dir)
+    print(Vf.shape)
     #Vf = read_volume_h5('outV', "voids", h5_volume_dir)
     if(end is None):
         end = Vf.shape[-1]
@@ -394,8 +395,8 @@ def save_images_of_h5(h5_volume_dir, data_volume_path, output_path, volume_h5_na
     #Vf[np.where(Vv == 1)] = 1
 
     data_volume = load_full_volume(data_volume_path, start * scale, end * scale - 1, scale=scale)
-    print(Vf.shape)
-    print(data_volume.shape)
+    print("Results Shape: {} ".format(Vf.shape))
+    print("Volume Shape: {} ".format(data_volume.shape))
 
     #data_volume = data_volume[:, :, 500, :].unsqueeze(3)
     #Vf = Vf[:, :, 500, :].unsqueeze(3)
