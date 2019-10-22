@@ -403,6 +403,7 @@ def save_images_of_h5(h5_volume_dir, data_volume_path, output_path, volume_h5_na
     #print(data_volume.shape)
     # exit()
 
+    save_subvolume_instances(data_volume, Vf.long() * 0, output_path + "originals")
     save_subvolume_instances(data_volume, Vf.long(), output_path)#, start=start, end=end)
 
 def save_images_of_h5_side(h5_volume_dir, data_volume_path, output_path, volume_h5_name='Volume', volume_voids_h5="outV", start=0, end=None, scale=2):
@@ -433,6 +434,7 @@ def save_images_of_h5_side(h5_volume_dir, data_volume_path, output_path, volume_
     # exit()
 
     save_subvolume_instances(data_volume, Vf.long(), output_path)#, start=start, end=end)
+    save_subvolume_instances(data_volume, Vf.long() * 0, output_path + "_originals")
 
 
 #################### #################### Cropping Utils #################### #################### ####################
