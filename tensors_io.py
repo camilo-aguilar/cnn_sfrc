@@ -422,7 +422,7 @@ def save_images_of_h5_side(h5_volume_dir, data_volume_path, output_path, volume_
     #Vf[np.where(Vv == 1)] = 1
 
     data_volume = load_full_volume(data_volume_path, 0, (slices * 2) - 1)
-    data_volume[:, ::2, ::2, ::2]
+    data_volume[:, ::scale, ::scale, ::scale]
 
     data_volume = torch.transpose(data_volume, 3, 2)
     data_volume = data_volume[..., start:end]
