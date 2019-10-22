@@ -103,6 +103,5 @@ dependencies:
     - pywavelets==1.0.3
     - scikit-image==0.14.2
     - toolz==0.9.0
-    - tsnecuda==2.0.0
 prefix: /pub2/aguilarh/anaconda3/envs/old_python
 
