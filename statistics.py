@@ -29,7 +29,7 @@ def downsample_volume(h5_volume_dir, dataset_name, scale=4):
     print("Downsampling volume")
     Volume = tensors_io.read_volume_h5(dataset_name, dataset_name, h5_volume_dir)
 
-    Volume = ndi.zoom(Volume, 1 / scale, order=0)
+    Volume = ndi.zoom(Volume, 1.0 / scale, order=0)
     tensors_io.save_volume_h5(Volume, name=dataset_name + "_small", dataset_name=dataset_name + "_small", directory=h5_volume_dir)
 
 
@@ -102,7 +102,7 @@ def get_statistics_fibers(h5_volume_dir, fibers_name, scale=2):
     V_fibers = tensors_io.read_volume_h5(fibers_name, fibers_name, h5_volume_dir)
     V_fibers[np.where(V_fibers == 1)] = 0
 
-    V_fibers = ndi.zoom(V_fibers, 1 / scale, order=0)
+    V_fibers = ndi.zoom(V_fibers, 1.0 / scale, order=0)
 
     list_fibers = fit_all_fibers_parallel(V_fibers)
     f = open("dict_fibers.txt","w")
