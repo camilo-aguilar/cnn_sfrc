@@ -5,6 +5,7 @@ REQUIREMENTS:
 
 	-Python 2.7  
 	-GPU memory > 6 GBs  
+	-RAM ~ 30 GBs
 
 
 SET UP:
@@ -13,6 +14,8 @@ SET UP:
 	First time:
 	-download file fiber_env.yml
 	-run command: conda env create -f fiber_env.yml
+	-download info_files and copy it in the same directory as main.py
+	info files: https://drive.google.com/open?id=1WYCYYjV8cE48-4WIflFkPIFwQr-pg-MJ
 	To run:
 	-modify "data_path" variable in script main.py  
 	-run shell commands:
