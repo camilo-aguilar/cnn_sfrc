@@ -34,11 +34,11 @@ if __name__ == '__main__':
     get_statistics_voids(output_folder_name, "volume_fiber_voids", scale=2)
     
     # Upsample Volume
-    upsample_full_volume(output_folder_name, "volume_fiber_voids", scale=1)
+    upsample_full_volume(output_folder_name, "volume_fiber_voids", scale=2)
 
 
     print("Saving Sample Outputs")
-    tensors_io.save_images_of_h5(h5_volume_dir=output_folder_name, data_volume_path=data_path_f, output_path='output_files/fibers_full', volume_h5_name='volume_fiber_voidsfull', start=600, end=610, scale=1)
-    tensors_io.save_images_of_h5_side(h5_volume_dir=output_folder_name, data_volume_path=data_path_f, output_path='output_files/fibers_side', volume_h5_name='volume_fiber_voidsfull', start=1000, end=1010, scale=1)
+    tensors_io.save_images_of_h5(h5_volume_dir=output_folder_name, data_volume_path=data_path_f, output_path='output_files/fibers_full', volume_h5_name='volume_fiber_voids_full', start=600, end=610, scale=1)
+    tensors_io.save_images_of_h5_side(h5_volume_dir=output_folder_name, data_volume_path=data_path_f, output_path='output_files/fibers_side', volume_h5_name='volume_fiber_voids_full', start=1000, end=1010, scale=1)
 
    
