@@ -279,8 +279,17 @@ def test_net_one_pass_embedding(net_e, data_volume, final_fibers, final_pred, n_
 
     print("Merging Neighbors")
     merged_n = merge_inner_fibers(end_points, fiber_list, fiber_ids, final_fibers[0, 0, :, :, :], debug=0, angle_threshold=5)
+    print("Merged {} neighbors first pass".format(merged_n))
+    
+    print("Estimating Fiber Properties Second Pass")
+    outputs = get_fiber_properties(final_fibers[0, 0, :, :, :], large_volume=True)
+    centers, fiber_ids, end_points, fiber_list = outputs
+
+    print("Merging Neighbors Second Pass")
+    merged_n = merge_inner_fibers(end_points, fiber_list, fiber_ids, final_fibers[0, 0, :, :, :], debug=0, angle_threshold=5)
+
     # merged_n += merge_inner_fibers(end_points, fiber_list, fiber_ids, final_fibers[0, 0, :, :, :], debug=0, angle_threshold=5)
-    print("Merged {}. neighbors".format(merged_n))
+    print("Merged {} neighbors in second pass".format(merged_n))
 
     print("Appliying Offset")
     for dict_id in fiber_list:
