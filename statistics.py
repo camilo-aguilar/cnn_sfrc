@@ -46,9 +46,9 @@ def upsample_full_volume(h5_volume_dir, dataset_name, scale=2):
         Volume = ndi.zoom(Volume, scale, order=0)
 
         if(slc == 0):
-            tensors_io.save_volume_h5(Volume, directory=h5_volume_dir, name=dataset_name + "full", dataset_name=dataset_name + "_full")
+            tensors_io.save_volume_h5(Volume, directory=h5_volume_dir, name=dataset_name + "_full", dataset_name=dataset_name + "_full")
         else:
-            tensors_io.append_volume_h5(Volume, directory=h5_volume_dir, name=dataset_name + "full", dataset_name=dataset_name + "_full")
+            tensors_io.append_volume_h5(Volume, directory=h5_volume_dir, name=dataset_name + "_full", dataset_name=dataset_name + "_full")
 
 
 
