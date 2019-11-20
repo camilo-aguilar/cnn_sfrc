@@ -4,8 +4,8 @@ Scripts to extract fibers and voids from short fiber reinforced polymers V2
 REQUIREMENTS:
 
 	-Python 2.7  
-	-GPU memory > 6 GBs  
-	-RAM > 12 GBs
+	-GPU memory > 12 GBs  
+	-RAM > 20 GBs
 
 
 SET UP:
@@ -31,9 +31,9 @@ OUTPUT:
 	H5 FILES (+ XMF FILES):
 		volume_segmentation.h5: 1025x1025x501 numpy uint16. Matrix=0, fibers=1 and voids=2
 		volume_fiber_voids.h5: 1025x1025x501 numpy uint16. Matrix=0, voids=1, fiber=2...N (each number is a different fiber. Starting at 2...N)
-		volume_fiber_voids_labeled_voids.h5: 1025x1025x501 numpy uint16. Matrix=0, voids=1,2...N (each number is a different void)
+		volume_fiber_voids_labeled_voids.h5: 1025x1025x501 numpy uint16. Matrix=0, fiber=2,3,4,...<999999.  voids=1000001,1000002...N (Each void is given an offset of +1E6)
 
-		volume_fiber_voids_full.h5: 2050x2050x1002: Upsample version of volume_fiber_voids. numpy uint16. Matrix=0, voids=1, fiber=2...N
+		volume_fiber_voids_labeled_voids_full_resolution.h5: 2050x2050x1002: Upsample version of volume_fiber_voids_labeled_voids.
 
 	TXT FILES:
 		fiber_dictionary.txt: fiber dictionary for volume_fiber_voids.h5 containing:
