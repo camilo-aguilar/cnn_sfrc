@@ -52,7 +52,7 @@ def process_all_volume(net_s, net_e, net_sv, data_path, n_embedded=12, cube_size
             
             ################################################ Semantic Segmentation ############################################################
             ## First get a rough segmentation
-            final_pred = get_only_segmentation(net_s, data_volume, n_classes, cube_size_e)
+            final_pred = get_only_segmentation(net_s, data_volume, n_classes, cube_size_e, device=device)
             ###################################################################################################################################
             # This is hard coded to filter out edges
             print('Filtering Edges') 
@@ -72,7 +72,7 @@ def process_all_volume(net_s, net_e, net_sv, data_path, n_embedded=12, cube_size
 
             ################################################ Void Detection ###########################################################
             print("Finding Voids")
-            final_pred = get_only_segmentation(net_sv, data_volume, n_classes=3, cube_size=192)
+            final_pred = get_only_segmentation(net_sv, data_volume, n_classes=3, cube_size=192, device=device)
 
             # Filtering Edges
             print('Filtering Edges') 
@@ -145,26 +145,29 @@ def process_all_volume(net_s, net_e, net_sv, data_path, n_embedded=12, cube_size
     print("FINISHED TESTING")
 
 
-
-
 ################################################ Helper  Functions  ############################################################
 
-def get_only_segmentation(net_s, data_volume, n_classes, cube_size):
+
+def get_only_segmentation(net_s, data_volume, n_classes, cube_size, device=None):
+    if(device is None):
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     (batch_size, channels, rows, cols, depth) = data_volume.shape
 
     final_probs = torch.zeros((batch_size, n_classes, rows, cols, depth), requires_grad=False)
 
-    final_probs = test_net_one_pass_segmentation(net_s, data_volume, final_probs, n_classes, cube_size, start_offset=0)
+    final_probs = test_net_one_pass_segmentation(net_s, data_volume, final_probs, n_classes, cube_size, start_offset=0, device=device)
     # Make a second pass
-    final_probs = test_net_one_pass_segmentation(net_s, data_volume, final_probs, n_classes, cube_size, start_offset=cube_size / 2)
+    final_probs = test_net_one_pass_segmentation(net_s, data_volume, final_probs, n_classes, cube_size, start_offset=cube_size / 2, device=device)
     _, final_pred = final_probs.max(1)
     final_pred = final_pred.unsqueeze(0)
     return final_pred
 
 
-def test_net_one_pass_segmentation(net, data_volume, final_probs, n_classes=2, cube_size=192, start_offset=0):
+def test_net_one_pass_segmentation(net, data_volume, final_probs, n_classes=2, cube_size=192, start_offset=0, device=None):
     first_pass = len(final_probs.nonzero()) > 0
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if(device is None):
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     (batch_size, channels, rows, cols, depth) = data_volume.shape
     st = start_offset
     starting_points_x = []
