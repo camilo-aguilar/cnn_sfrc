@@ -18,7 +18,7 @@ from functools import partial
 from contextlib import contextmanager
 
 def guess_cylinder_parameters_w_torch(L, pre_seg):
-    indexes = (pre_seg == L).nonzero().float()    
+    indexes = (pre_seg == L).nonzero().float()
     fiber_points = indexes
     w_fit, C_fit, r_fit, h_fit, fit_err  = fit_t(fiber_points)
 
@@ -99,13 +99,13 @@ def guess_cylinder_parameters_voids(L, pre_seg):
 
     step_size = 1
     num_points = len(indexes[0])
-    if(num_points < 30):
+    if(num_points < 5):
         x = indexes[0].mean()
         y = indexes[1].mean()
         z = indexes[2].mean()
         return [L, x, y, z, -1, -1, -1, -1, -1]
-    if(num_points > 30):
-        step_size = int(math.floor(num_points / 30))
+    if(num_points > 5):
+        step_size = int(math.floor(num_points / 5))
 
     fiber_points = [np.array([indexes[0][k], indexes[1][k], indexes[2][k]]).astype(np.float) for k in range(1, num_points, step_size)]
 
@@ -123,6 +123,18 @@ def fit_all_voids_parallel(volume, offset_coordinates=None):
         results = pool.map(partial(guess_cylinder_parameters_voids, pre_seg=volume), names)
       
     return results
+
+def guess_cylinder_parameters_simple(L, indxs):
+    L = L.cpu().item()
+    fiber_points = indxs[L]
+    w_fit, C_fit, r_fit, h_fit, fit_err = fit(fiber_points)
+    Txy = np.arctan2(w_fit[1], w_fit[0]) * 180 / np.pi
+    if(Txy < 0):
+        Txy = 180 + Txy
+    Tz = np.arccos(np.dot(w_fit, np.array([0, 0, 1])) / np.linalg.norm(w_fit, 2)) * 180 / np.pi
+
+    return [L, C_fit[0], C_fit[1], C_fit[2], r_fit, h_fit, Txy, Tz, fit_err]
+
 
 def guess_cylinder_parameters(L, pre_seg):
     L = L.item()
@@ -196,6 +208,30 @@ def fit_all_fibers_parallel_simple(volume, offset_coordinates=None):
         results = pool.map(partial(guess_cylinder_parameters_w, pre_seg=volume), names)
     return results
 
+def fit_all_fibers_parallel_from_torch(volume, offset):
+    labels = torch.unique(volume)
+    list_of_indxs = {}
+    for f_id in labels:
+        if(f_id == 0 or f_id == 1):
+            continue
+        coordinates = (volume == f_id).nonzero().cpu().split(1, dim=1)
+        step_size = 1
+        num_points = len(coordinates[0])
+        if(num_points < 30):
+            volume[coordinates] = 0
+            continue
+
+        if(num_points > 30):
+            step_size = int(math.floor(num_points / 30))
+
+        # list_of_indxs[f_id] = [np.array([coordinates[0][k].float() + offset[0], coordinates[1][k].float() + offset[1], coordinates[2][k].float() + offset[2]]).astype(np.float) for k in range(1, num_points, step_size)]
+        list_of_indxs[f_id] = coordinates
+        print(f_id)
+    number = multiprocessing.cpu_count()
+    with poolcontext(processes=number) as pool:
+        results = pool.map(partial(guess_cylinder_parameters_simple, indxs=list_of_indxs), labels)
+
+    return results
 
 '''
     volume shape: [chs rws cls slcs]
@@ -373,17 +409,6 @@ def PCA(X, k=2):
      U,S,V = torch.svd(torch.t(X))
      return U[:,:k]
 
-
-
-def guess_cylinder_parameters_simple(L, pre_seg):
-    L = L.item()
-    indexes = np.where(pre_seg == L)
-
-    C_fit = np.array([idx.mean() for idx in indexes])
-    distances = [np.sqrt(np.dot(indexes[k] - C_fit[k], indexes[k] - C_fit[k])) for k in range(len(indexes))]
-    h_fit = 2 * np.mean(distances)
-
-    return(L, C_fit, h_fit)
 
 
 

@@ -67,12 +67,13 @@ def preprocess_data(Xs_raw):
     Xs_raw= Xs_raw - X_mean.expand_as(Xs_raw)
     return Xs_raw, X_mean
 
-def G(w, Xs):
+def G(w, Xs, c):
     '''Calculate the G function given a cylinder direction w and a
     list of data points Xs to be fitted.'''
     n = len(Xs)
+    Xs_off = Xs - c.t()
     P = projection_matrix(w)
-    Ys = torch.mm(P, Xs.t())
+    Ys = torch.mm(P, Xs_off.t())
     Ys = Ys.to(Xs.device)
     A = calc_A(Ys)
     A = A.to(Xs.device)
@@ -87,16 +88,16 @@ def G_np(w, Xs):
     '''Calculate the G function given a cylinder direction w and a
     list of data points Xs to be fitted.'''
     n = len(Xs)
-    P = projection_matrix(w)
+    P = projection_matrix_np(w)
     Ys = [np.dot(P, X) for X in Xs]
-    A = calc_A(Ys)
-    A_hat = calc_A_hat(A, skew_matrix(w))
+    A = calc_A_np(Ys)
+    A_hat = calc_A_hat_np(A, skew_matrix_np(w))
 
     
-    u = sum(np.dot(Y, Y) for Y in Ys) / n
-    v = np.dot(A_hat, sum(np.dot(Y, Y) * Y for Y in Ys)) / (np.trace(np.dot(A_hat, A)))
+    u = sum(np.dot(Y[:, 0], Y[:, 0]) for Y in Ys) / n
+    v = np.dot(A_hat, sum(np.dot(Y[:, 0], Y[:, 0]) * Y for Y in Ys)) / (np.trace(np.dot(A_hat, A)))
 
-    return sum((np.dot(Y, Y) - u - 2 * np.dot(Y, v)) ** 2 for Y in Ys)
+    return sum((np.dot(Y[:, 0], Y[:, 0]) - u - 2 * np.dot(Y[:, 0], v)) ** 2 for Y in Ys)
 
 def C(w, Xs):
     '''Calculate the cylinder center given the cylinder direction and 
@@ -138,7 +139,10 @@ def r2(w, Xs, c):
     n = len(Xs)
     P = projection_matrix(w)
     Xs_off = c - Xs.t()
+    print(Xs_off.dtype)
     Xs_off = Xs_off.split(1, dim=1)
+
+    print(P.dtype)
 
     vector_r = [torch.mm(X.t(),torch.mm(P, X)) for X in Xs_off]
     r = torch.sqrt(sum(vector_r) / n)

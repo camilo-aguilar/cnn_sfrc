@@ -76,7 +76,9 @@ def H(c, Xs):
     '''Calculate the height given the cylinder center and a list
     of data points.
     '''
+
     distances = [np.sqrt(np.dot(X - c, X - c)) for X in Xs]
+    idx = np.where(distances == distances)
     return 2 * np.mean(distances)
 
 def fit(data, guess_angles=None):
@@ -102,6 +104,8 @@ def fit(data, guess_angles=None):
     start_points = [(0, 0), (np.pi / 2, 0), (np.pi / 2, np.pi / 2)]
     if guess_angles:
         start_points = guess_angles
+
+
 
     # Fit the cylinder from different start points 
 
