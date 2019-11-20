@@ -747,7 +747,10 @@ if __name__ == '__main__':
     '''
 
 
-    V = read_volume_h5('pre_merge_offset', 'pre_merge_offset', 'h5_files')
+    V = read_volume_h5('volume_fiber_voids_labeled_voids', 'volume_fiber_voids_labeled_voids', 'h5_statistics')
+    print(V.shape)
+    V = V[200:400, 200:400, 200:400]
+    V = save_volume_h5(V, "Volume_1", "Volume1", "./")
 
     '''
     V = V[0:100, 0:100, 0:100]
