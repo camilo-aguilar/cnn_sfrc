@@ -63,6 +63,7 @@ def process_all_volume(net_s, net_e, net_sv, data_path, n_embedded=12, cube_size
             del filter_image
 
 
+
             ################################################ Fiber Detection ############################################################
             final_fibers = torch.zeros((1, 1, rows, cols, slices), requires_grad=False, dtype=torch.long).to(device)
             if(counter > 0):
@@ -109,7 +110,7 @@ def process_all_volume(net_s, net_e, net_sv, data_path, n_embedded=12, cube_size
             # final_pred = F.interpolate(final_pred, scale_factor=2)
             final_pred = final_pred[0, 0, ...].cpu().numpy().astype(np.int64)
             if(counter == 0):
-                tensors_io.save_volume_h5(final_pred, directory=output_directory, name='volume_segmentation', dataset_name='volume_segmentation')  
+                tensors_io.save_volume_h5(final_pred, directory=output_directory, name='volume_segmentation', dataset_name='volume_segmentation')
             else:
                 tensors_io.append_volume_h5(final_pred, directory=output_directory, name='volume_segmentation', dataset_name='volume_segmentation')
             del final_pred
@@ -123,7 +124,7 @@ def process_all_volume(net_s, net_e, net_sv, data_path, n_embedded=12, cube_size
             else:
                 tensors_io.append_volume_h5(final_fibers, directory=output_directory, name='volume_fiber_voids', dataset_name='volume_fiber_voids')
             del final_fibers
-
+            torch.cuda.empty_cache()
             '''
             data_volume = F.interpolate(data_volume, scale_factor=2)
             if(counter == 0):
