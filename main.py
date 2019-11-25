@@ -47,14 +47,14 @@ if __name__ == '__main__':
     print("Time taken to run code: {}".format(end - start0))
 
     ################################################ SAMPLE TIFF IMAGES FROM H5 VOLUMES #############################################
-    # print("Saving Sample Images Outputs")
+    print("Saving Sample Images Outputs")
     # Sample slices to save with top view
 
-    # start_top = 300
-    # end_top = 305
-    # tensors_io.save_images_of_h5(h5_volume_dir=output_folder_name, data_volume_path=data_path_f, output_path=output_folder_name + '/fibers_full', volume_h5_name='volume_fiber_voids_labeled_voids', start=start_top, end=end_top, scale=2)
+    start_top = 300
+    end_top = 305
+    tensors_io.save_images_of_h5(h5_volume_dir=output_folder_name, data_volume_path=data_path_f, output_path=output_folder_name + '/fibers_full', volume_h5_name='volume_fiber_voids_labeled_voids', start=start_top, end=end_top, scale=2)
 
-    # start_side = 300
-    # end_side = 305
+    start_side = 300
+    end_side = 305
     # Sample slices to save with side view
-    # tensors_io.save_images_of_h5_side(h5_volume_dir=output_folder_name, data_volume_path=data_path_f, output_path=output_folder_name + '/fibers_side', volume_h5_name='volume_fiber_voids_labeled_voids', start=start_side, end=end_side, scale=2)
+    tensors_io.save_images_of_h5_side(h5_volume_dir=output_folder_name, data_volume_path=data_path_f, output_path=output_folder_name + '/fibers_side', volume_h5_name='volume_fiber_voids_labeled_voids', start=start_side, end=end_side, scale=2

@@ -49,9 +49,9 @@ def process_all_volume(net_s, net_e, net_sv, data_path, n_embedded=12, cube_size
             data_volume[0, ...] = tensors_io.clean_noise(data_volume[0, ...], data_path)
             (_, _, rows, cols, slices) = data_volume.shape
             out_vol_end = out_vol_start + slices
-            
             ################################################ Semantic Segmentation ############################################################
             ## First get a rough segmentation
+            torch.cuda.empty_cache()
             final_pred = get_only_segmentation(net_s, data_volume, n_classes, cube_size_e, device=device)
             ###################################################################################################################################
             # This is hard coded to filter out edges
@@ -61,17 +61,20 @@ def process_all_volume(net_s, net_e, net_sv, data_path, n_embedded=12, cube_size
             filter_image = filter_image.unsqueeze(0).unsqueeze(0).float()
             final_pred = final_pred * filter_image.long()
             del filter_image
-
+            torch.cuda.empty_cache()
 
 
             ################################################ Fiber Detection ############################################################
+            torch.cuda.empty_cache()
             final_fibers = torch.zeros((1, 1, rows, cols, slices), requires_grad=False, dtype=torch.long).to(device)
             if(counter > 0):
                 final_fibers[..., 0:int(percent_overlap * cube_size_e)] = temp_last_volume.clone()
             (final_fibers, list_of_fibers, volume_fibers) = test_net_one_pass_embedding(net_e, data_volume, final_fibers, final_pred, n_embedded, cube_size_e, percent_overlap=0.2, start_offset=[0, 0, out_vol_start], fibers_before=num_fibers, fiber_dict=fiber_dict, volume_n=counter, device=device)
 
+            del final_pred
             ################################################ Void Detection ###########################################################
             print("Finding Voids")
+            torch.cuda.empty_cache()
             final_pred = get_only_segmentation(net_sv, data_volume, n_classes=3, cube_size=192, device=device)
 
             # Filtering Edges
@@ -82,9 +85,9 @@ def process_all_volume(net_s, net_e, net_sv, data_path, n_embedded=12, cube_size
             final_pred = final_pred * filter_image.long()
             del filter_image
 
-
             ################################################## Final Steps #################################################################
             # Shift Volumes to keep track of previous volume
+            torch.cuda.empty_cache()
             temp_last_volume = final_fibers[..., -int(percent_overlap * cube_size_e):].clone()
             final_fibers = final_fibers[..., 0: slices - int(percent_overlap * cube_size_e)]
             final_pred = final_pred[..., 0: slices - int(percent_overlap * cube_size_e)]
@@ -106,8 +109,6 @@ def process_all_volume(net_s, net_e, net_sv, data_path, n_embedded=12, cube_size
                 final_fibers[voids_idx] = 1
 
             print("Saving Volume")
-            # Interpolate and save segmentation
-            # final_pred = F.interpolate(final_pred, scale_factor=2)
             final_pred = final_pred[0, 0, ...].cpu().numpy().astype(np.int64)
             if(counter == 0):
                 tensors_io.save_volume_h5(final_pred, directory=output_directory, name='volume_segmentation', dataset_name='volume_segmentation')
@@ -115,35 +116,23 @@ def process_all_volume(net_s, net_e, net_sv, data_path, n_embedded=12, cube_size
                 tensors_io.append_volume_h5(final_pred, directory=output_directory, name='volume_segmentation', dataset_name='volume_segmentation')
             del final_pred
 
-            # Interpolate and save fibers/voids
-            # final_fibers = F.interpolate(final_fibers, scale_factor=2)
             final_fibers = final_fibers[0, 0, ...].cpu().numpy().astype(np.int64)
-            # final_fibers = ndi.zoom(final_fibers, 2, order=0)
+
             if(counter == 0):
                 tensors_io.save_volume_h5(final_fibers, directory=output_directory, name='volume_fiber_voids', dataset_name='volume_fiber_voids')
             else:
                 tensors_io.append_volume_h5(final_fibers, directory=output_directory, name='volume_fiber_voids', dataset_name='volume_fiber_voids')
             del final_fibers
             torch.cuda.empty_cache()
-            '''
-            data_volume = F.interpolate(data_volume, scale_factor=2)
-            if(counter == 0):
-                tensors_io.save_volume_h5((data_volume[0, 0, ...] * 65535).cpu().numpy().astype(np.int16), directory='./output_files', name='data_volume', dataset_name='data_volume')
-            else:
-                tensors_io.append_volume_h5((data_volume[0, 0, ...] * 65535).cpu().numpy().astype(np.int16), directory='./output_files', name='data_volume', dataset_name='data_volume')
-            del data_volume
-            '''
 
             counter = counter + 1
-
-            print("FINISHED TESTING")
             f = open(output_directory + "/fiber_dictionary.txt", "w")
             for k in fiber_dict.keys():
                 el = fiber_dict[k]
                 f.write("{},{:.0f},{:.0f},{:.0f},{:.2f},{:.2f},{:.4f},{:.4f},{:.4f}\n".format(el[0], el[1], el[2], el[3], el[4], el[5], el[6], el[7], el[8]))
             f.close()
+            torch.cuda.empty_cache()
     print("FINISHED TESTING")
-
 
 ################################################ Helper  Functions  ############################################################
 
@@ -257,6 +246,7 @@ def test_net_one_pass_embedding(net_e, data_volume, final_fibers, final_pred, n_
         for lb_z in starting_points_z:
             for lb_y in starting_points_y:
                 for lb_x in starting_points_x:
+                    torch.cuda.empty_cache()
                     counter = counter + 1
                     (mini_V, mini_M) = tensors_io.full_crop_3D_image_batched(data_volume, final_pred, lb_x, lb_y, lb_z, cube_size)
                     mini_M = mini_M.long()
@@ -274,10 +264,10 @@ def test_net_one_pass_embedding(net_e, data_volume, final_fibers, final_pred, n_
                     final_fibers[0, 0, lb_x:lb_x + cube_size, lb_y:lb_y + cube_size, lb_z:lb_z + cube_size] = merge_outputs[0]
                     num_fibers = merge_outputs[1]
 
-
                     print('V: {}.  SubVolume {} out of {}. Found {} fibers'.format(volume_n, counter, total_volumes, num_fibers))
 
     print("Estimating Fiber Properties")
+    torch.cuda.empty_cache()
     outputs = get_fiber_properties(final_fibers[0, 0, :, :, :], large_volume=True)
     centers, fiber_ids, end_points, fiber_list = outputs
 
@@ -286,6 +276,7 @@ def test_net_one_pass_embedding(net_e, data_volume, final_fibers, final_pred, n_
     print("Merged {} neighbors first pass".format(merged_n))
     
     print("Estimating Fiber Properties Second Pass")
+    torch.cuda.empty_cache()
     outputs = get_fiber_properties(final_fibers[0, 0, :, :, :], large_volume=True)
     centers, fiber_ids, end_points, fiber_list = outputs
 

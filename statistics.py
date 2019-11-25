@@ -406,10 +406,10 @@ def get_size_image(volume):
 ''' Calculate Void Point Statistics'''
 ''' Outputs a Dictionary of the Form:'''
 '''  << void_label, center[0]. center[1], center[2], mean_radious, volume, direction[0], direction[1], direction[2]'''
-def get_statistics_voids(h5_volume_dir, voids_name, scale=2):
+def get_statistics_voids(h5_volume_dir, dataset_name, scale=2):
     scale = float(scale)
     print("Calculating statistics voids")
-    Volume = tensors_io.read_volume_h5(voids_name, voids_name, h5_volume_dir)
+    Volume = tensors_io.read_volume_h5(dataset_name, dataset_name, h5_volume_dir)
     Volume[np.where(Volume != 1)] = 0
 
     Volume = ndi.zoom(Volume, 1.0 / scale)
@@ -427,10 +427,10 @@ def get_statistics_voids(h5_volume_dir, voids_name, scale=2):
     Volume = ndi.zoom(Volume, 2, order=0)
 
     Volume = Volume[:-1, :-1, :-1]
-    Volume_fibers = tensors_io.read_volume_h5(voids_name, voids_name, h5_volume_dir)
+    Volume_fibers = tensors_io.read_volume_h5(dataset_name, dataset_name, h5_volume_dir)
     Volume_fibers[np.where(Volume_fibers == 1)] = Volume[np.where(Volume_fibers == 1)]
 
-    tensors_io.save_volume_h5(Volume_fibers, name=voids_name + '_labeled_voids', dataset_name=voids_name + '_labeled_voids', directory=h5_volume_dir)
+    tensors_io.save_volume_h5(Volume_fibers, name=dataset_name + '_labeled_voids', dataset_name=dataset_name + '_labeled_voids', directory=h5_volume_dir)
 
     try:
         read_dictionary_voids_volume(h5_volume_dir + "/void_statistics.txt")
