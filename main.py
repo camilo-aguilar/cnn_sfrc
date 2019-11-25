@@ -57,4 +57,4 @@ if __name__ == '__main__':
     start_side = 300
     end_side = 305
     # Sample slices to save with side view
-    tensors_io.save_images_of_h5_side(h5_volume_dir=output_folder_name, data_volume_path=data_path_f, output_path=output_folder_name + '/fibers_side', volume_h5_name='volume_fiber_voids_labeled_voids', start=start_side, end=end_side, scale=2
+    tensors_io.save_images_of_h5_side(h5_volume_dir=output_folder_name, data_volume_path=data_path_f, output_path=output_folder_name + '/fibers_side', volume_h5_name='volume_fiber_voids_labeled_voids', start=start_side, end=end_side, scale=2)
