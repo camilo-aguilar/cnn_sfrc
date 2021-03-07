@@ -1,3 +1,5 @@
+# Paper
+C.Aguilar , M. Comer, I. Hanhan, R. Agyei, M. Sangid. “Void Detection and fiber extraction for statistical characterization of fiber-reinforced polymers”. IS&T/SPIE Electronic Imaging, January 2020, Burlingame, CA. (https://par.nsf.gov/biblio/10179419)
 # cnn_sfrc
 Scripts to extract fibers and voids from short fiber reinforced polymers V2
 
